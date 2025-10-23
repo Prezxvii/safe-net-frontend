@@ -1,11 +1,44 @@
-// 4. API Route Definition (UPDATED PROMPT FOR DETAIL)
+// 1. Core Imports
+const express = require('express');
+const cors = require('cors'); // Required for Cross-Origin communication
+require('dotenv').config(); // Load environment variables from .env
+
+// 2. Initialize App and Constants
+const app = express();
+// Use the PORT from your .env, or default to 4000
+const port = process.env.PORT || 4000; 
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL_NAME = process.env.OPENROUTER_MODEL_NAME || 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo';
+
+// 🔑 FIX: Define the allowed origin for CORS using an environment variable
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:3000';
+console.log(`CORS ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}`);
+
+// Simple check to ensure API key is present
+if (!OPENROUTER_API_KEY) {
+    console.error("CRITICAL: OPENROUTER_API_KEY is not set in .env file!");
+    process.exit(1);
+}
+
+// 3. Middleware Configuration
+// 🛑 FIX: Configure CORS to allow the deployed frontend origin
+app.use(cors({
+    origin: ALLOWED_ORIGIN,
+}));
+
+// Middleware to parse JSON request bodies
+app.use(express.json());
+
+// 4. API Route Definition (UPDATED FOR DETAILED JSON RESPONSE)
 app.post('/api/classify', async (req, res) => {
+    // Expects 'text' field from the frontend
     const { text } = req.body;
+
     if (!text) {
         return res.status(400).json({ error: 'Missing "text" in request body.' });
     }
 
-    // 🛑 FIX: Prompt revised to request a much longer, more descriptive reason
+    // 🛑 FIX: Prompt to force structured JSON output with detailed reasoning
     const prompt = `Classify the following text content. Your response MUST be a single JSON object.
 
     **Categories and Criteria:**
@@ -33,7 +66,6 @@ app.post('/api/classify', async (req, res) => {
             },
             body: JSON.stringify({
                 model: OPENROUTER_MODEL_NAME,
-                // Use the API feature to request JSON output
                 response_format: { type: "json_object" }, 
                 messages: [
                     { 
@@ -57,7 +89,7 @@ app.post('/api/classify', async (req, res) => {
         const data = await response.json();
         const rawModelContent = data.choices[0].message.content.trim();
        
-        // Parse the model's response string into a usable JavaScript object
+        // 🛑 FIX: Parse the model's response string into a usable JavaScript object
         let classificationData;
         try {
             classificationData = JSON.parse(rawModelContent);
