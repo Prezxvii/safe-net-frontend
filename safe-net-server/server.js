@@ -1,35 +1,46 @@
-// 1. Core Imports
+ // 1. Core Imports
 const express = require('express');
-const cors = require('cors'); 
-require('dotenv').config(); 
+const cors = require('cors'); // Required for Cross-Origin communication
+require('dotenv').config(); // Load environment variables from .env
 
 // 2. Initialize App and Constants
 const app = express();
+// Use the PORT from your .env, or default to 4000
 const port = process.env.PORT || 4000; 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL_NAME = process.env.OPENROUTER_MODEL_NAME || 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo';
 
-// Define the allowed origin for CORS
+// 🛑 FIX: Updated the model name to the new Mistral model
+const OPENROUTER_MODEL_NAME = process.env.OPENROUTER_MODEL_NAME || 'mistralai/mistral-small-3.2-24b-instruct-2506';
+
+// 🔑 CORS: Define the allowed origin for CORS using an environment variable
 const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:3000';
 console.log(`CORS ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}`);
 
+// Simple check to ensure API key is present
 if (!OPENROUTER_API_KEY) {
     console.error("CRITICAL: OPENROUTER_API_KEY is not set in .env file!");
     process.exit(1);
 }
 
 // 3. Middleware Configuration
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+// 🛑 CORS: Configure CORS to allow the deployed frontend origin
+app.use(cors({
+    origin: ALLOWED_ORIGIN,
+}));
+
+// Middleware to parse JSON request bodies
 app.use(express.json());
 
-// 4. API Route Definition (UPDATED TO REQUEST/PARSE JSON)
+// 4. API Route Definition (USING DETAILED JSON RESPONSE PROMPT)
 app.post('/api/classify', async (req, res) => {
+    // Expects 'text' field from the frontend
     const { text } = req.body;
+
     if (!text) {
         return res.status(400).json({ error: 'Missing "text" in request body.' });
     }
 
-    // 🛑 FIX: Prompt to force structured JSON output with all required fields
+    // Prompt to force structured JSON output with detailed reasoning (30-50 words)
     const prompt = `Classify the following text content. Your response MUST be a single JSON object.
 
     **Categories and Criteria:**
@@ -42,7 +53,7 @@ app.post('/api/classify', async (req, res) => {
     {
         "category": "[SAFE | UNSAFE | WARNING | BLOCKED]",
         "safety_score": [A number between 0.0 and 10.0, where 10.0 is safest],
-        "reason": "[A brief explanation for the classification, less than 20 words]"
+        "reason": "[A **detailed explanation** of the classification, clearly stating why it fits the category. The explanation must be between 30 and 50 words long.]"
     }
 
     Content to classify: "${text}"
@@ -57,7 +68,6 @@ app.post('/api/classify', async (req, res) => {
             },
             body: JSON.stringify({
                 model: OPENROUTER_MODEL_NAME,
-                // Use the API feature to request JSON output
                 response_format: { type: "json_object" }, 
                 messages: [
                     { 
