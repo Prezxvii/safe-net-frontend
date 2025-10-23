@@ -10,23 +10,23 @@ import {
   Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-// 👇 FIX APPLIED HERE: Changed '@icons-material/Close' to '@mui/icons-material/Close'
 import CloseIcon from '@mui/icons-material/Close'; 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import BlockIcon from '@mui/icons-material/Block';
 
 // --- CONFIGURATION ---
-// Access the backend API URL securely from the client environment variables
-// This variable MUST be prefixed with REACT_APP_ in a CRA project.
-const CLASSIFY_API_URL = process.env.REACT_APP_CLASSIFY_API_URL || '/api/classify';
+// 🛑 FIX 1: Rename to BASE_URL and use the full deployed URL as fallback
+// This is the BASE URL: https://safe-net-server.onrender.com
+const API_BASE_URL = process.env.REACT_APP_CLASSIFY_API_URL || 'https://safe-net-server.onrender.com';
+// The ENDPOINT PATH is hardcoded here to ensure the full URL is constructed below
+const API_ENDPOINT_PATH = '/api/classify';
 
 // Helper to determine MUI color based on safety category
 const getColor = (category) => {
-  // 👇 FIX APPLIED: Update logic to handle 'Safe' and 'Unsafe' from the model's new JSON response
   switch (category?.toLowerCase()) {
     case 'safe': return 'success';
-    case 'unsafe': return 'error'; // Treat 'Unsafe' as the most severe (error/blocked)
+    case 'unsafe': return 'error'; 
     case 'warning': return 'warning';
     case 'blocked': return 'error';
     default: return 'info';
@@ -45,7 +45,6 @@ const formatSafetyScore = (score) => {
 
 /**
  * SearchWidget Component.
- * Now makes a request to a secure backend endpoint for classification.
  */
 const SearchWidget = () => {
   const [query, setQuery] = useState('');
@@ -70,17 +69,17 @@ const SearchWidget = () => {
     setResult(null);
     setError(null);
 
+    // 🛑 FIX 2: Construct the correct, full URL using the base and the endpoint path
+    const fullApiUrl = `${API_BASE_URL}${API_ENDPOINT_PATH}`;
+
     try {
-      // ----------------------------------------------------------------
-      // --- IMPORTANT: REAL API FETCH TO BACKEND SERVICE ---
-      // ----------------------------------------------------------------
-      const response = await fetch(CLASSIFY_API_URL, {
+      const response = await fetch(fullApiUrl, { // Use the corrected URL here
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        // The backend expects the field 'content'
-        body: JSON.stringify({ content: query }),
+        // 🛑 FIX 3: The backend expects the field 'text', not 'content'
+        body: JSON.stringify({ text: query }),
       });
 
       if (!response.ok) {
@@ -92,14 +91,13 @@ const SearchWidget = () => {
             // response was not JSON, use the raw text
         }
         
-        const message = errorData.error || errorData.message || `Backend API error: ${response.status}`;
+        const message = errorData.error || errorData.message || `Backend API error: ${response.status} - Sent request to: ${fullApiUrl}`;
         throw new Error(message);
       }
 
       const data = await response.json();
       
-      // The backend should now return structured data from the model: 
-      // { category: 'Safe' | 'Unsafe', safety_score: number, reason: string }
+      // The backend now returns: { category, safety_score, reason, original_text }
       setResult(data);
 
     } catch (err) {
