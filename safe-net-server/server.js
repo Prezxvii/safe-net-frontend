@@ -8,7 +8,7 @@ const app = express();
 // Use the PORT from your .env, or default to 4000
 const port = process.env.PORT || 4000; 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL_NAME = process.env.OPENROUTER_MODEL_NAME || 'nousresearch/nous-hermes-2-mixtral-8x7b-dpo';
+const OPENROUTER_MODEL_NAME = process.env.OPENROUTER_MODEL_NAME || 'mistralai/mistral-small-3.2-24b-instruct-2506';
 
 // *******************************************************************
 // 🔑 NEW: Define the allowed origin for CORS
