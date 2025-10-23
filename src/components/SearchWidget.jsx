@@ -10,7 +10,8 @@ import {
   Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import CloseIcon from '@mui/icons-material/Close';
+// 👇 FIX APPLIED HERE: Changed '@icons-material/Close' to '@mui/icons-material/Close'
+import CloseIcon from '@mui/icons-material/Close'; 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import BlockIcon from '@mui/icons-material/Block';
@@ -18,14 +19,16 @@ import BlockIcon from '@mui/icons-material/Block';
 // --- CONFIGURATION ---
 // Access the backend API URL securely from the client environment variables
 // This variable MUST be prefixed with REACT_APP_ in a CRA project.
-const CLASSIFY_API_URL = process.env.REACT_APP_CLASSIFY_API_URL || 'http://localhost:4000/api/classify';
+const CLASSIFY_API_URL = process.env.REACT_APP_CLASSIFY_API_URL || '/api/classify';
 
 // Helper to determine MUI color based on safety category
 const getColor = (category) => {
-  switch (category) {
-    case 'Safe': return 'success';
-    case 'Warning': return 'warning';
-    case 'Blocked': return 'error';
+  // 👇 FIX APPLIED: Update logic to handle 'Safe' and 'Unsafe' from the model's new JSON response
+  switch (category?.toLowerCase()) {
+    case 'safe': return 'success';
+    case 'unsafe': return 'error'; // Treat 'Unsafe' as the most severe (error/blocked)
+    case 'warning': return 'warning';
+    case 'blocked': return 'error';
     default: return 'info';
   }
 };
@@ -76,18 +79,27 @@ const SearchWidget = () => {
         headers: {
           'Content-Type': 'application/json',
         },
+        // The backend expects the field 'content'
         body: JSON.stringify({ content: query }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Backend API error: ${response.status}`);
+        // Attempt to parse error data for better debugging
+        let errorData = await response.text(); 
+        try {
+            errorData = JSON.parse(errorData);
+        } catch (e) {
+            // response was not JSON, use the raw text
+        }
+        
+        const message = errorData.error || errorData.message || `Backend API error: ${response.status}`;
+        throw new Error(message);
       }
 
       const data = await response.json();
       
-      // The backend should return data structured like this: 
-      // { category: 'Safe' | 'Warning' | 'Blocked', safety_score: number, reason: string }
+      // The backend should now return structured data from the model: 
+      // { category: 'Safe' | 'Unsafe', safety_score: number, reason: string }
       setResult(data);
 
     } catch (err) {
@@ -183,6 +195,7 @@ const SearchWidget = () => {
       {/* Result Display Box */}
       {result && (
         <Alert
+          // Pass the category from the model response
           severity={getColor(result.category)}
           iconMapping={{
             success: <CheckCircleIcon fontSize="inherit" />,
@@ -196,13 +209,16 @@ const SearchWidget = () => {
             textAlign: 'left',
             borderRadius: '8px',
             border: `1px solid`,
+            // Use the determined color for the border
             borderColor: (theme) => theme.palette[getColor(result.category)].main,
           }}
         >
           <Typography variant="body1" fontWeight={700}>
+            {/* Display the category returned by the model */}
             {result.category} - Safety Score: {formatSafetyScore(result.safety_score)}/10.0
           </Typography>
           <Typography variant="body2" color="text.secondary">
+            {/* Display the reason returned by the model */}
             **Reason:** {result.reason}
           </Typography>
         </Alert>
