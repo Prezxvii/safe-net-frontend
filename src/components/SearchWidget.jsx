@@ -10,6 +10,7 @@ import {
   Snackbar
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
+// 👇 FIX APPLIED HERE: Changed '@icons-material/Close' to '@mui/icons-material/Close'
 import CloseIcon from '@mui/icons-material/Close'; 
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
@@ -18,10 +19,7 @@ import BlockIcon from '@mui/icons-material/Block';
 // --- CONFIGURATION ---
 // Access the backend API URL securely from the client environment variables
 // This variable MUST be prefixed with REACT_APP_ in a CRA project.
-// We are using a relative path here, which is often correct for development,
-// but for production, this should contain the full base URL (e.g., https://safe-net-server.onrender.com)
-// The correct path will be appended in the fetch call below.
-const CLASSIFY_API_BASE_URL = process.env.REACT_APP_CLASSIFY_API_URL || 'https://safe-net-server.onrender.com';
+const CLASSIFY_API_URL = process.env.REACT_APP_CLASSIFY_API_URL || '/api/classify';
 
 // Helper to determine MUI color based on safety category
 const getColor = (category) => {
@@ -74,21 +72,15 @@ const SearchWidget = () => {
 
     try {
       // ----------------------------------------------------------------
-      // 🛑 FIX 1: The correct URL is the BASE_URL + the endpoint path '/api/classify'
-      // The previous error (404 Not Found) occurred because the request was sent to the base URL (/)
+      // --- IMPORTANT: REAL API FETCH TO BACKEND SERVICE ---
       // ----------------------------------------------------------------
-      const API_ENDPOINT = `${CLASSIFY_API_BASE_URL}/api/classify`;
-      
-      const response = await fetch(API_ENDPOINT, {
+      const response = await fetch(CLASSIFY_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        // ----------------------------------------------------------------
-        // 🛑 FIX 2: The backend expects the field 'text', not 'content'
-        // The previous backend code defined the route parameter as const { text } = req.body;
-        // ----------------------------------------------------------------
-        body: JSON.stringify({ text: query }), // CHANGED 'content' to 'text'
+        // The backend expects the field 'content'
+        body: JSON.stringify({ content: query }),
       });
 
       if (!response.ok) {
@@ -107,19 +99,8 @@ const SearchWidget = () => {
       const data = await response.json();
       
       // The backend should now return structured data from the model: 
-      // { classification: 'SAFE' | 'UNSAFE', text: string } - Note: The structure in the prompt is slightly different than 
-      // the backend, but we'll try to map it. We'll use 'classification' as the category for now.
-      
-      // Adjust the data structure to fit the component's expectations for simplicity
-      // The backend returns: { classification: 'SAFE' | 'UNSAFE', text: string }
-      // The component expects: { category: 'SAFE' | 'UNSAFE', safety_score: number, reason: string }
-      // Since the backend doesn't send score/reason, we'll map the minimal data.
-      setResult({
-          category: data.classification,
-          // Placeholder values since the current backend doesn't return these
-          safety_score: data.classification === 'SAFE' ? 10.0 : 0.0, 
-          reason: `Classification based on original text: "${data.text}".`
-      });
+      // { category: 'Safe' | 'Unsafe', safety_score: number, reason: string }
+      setResult(data);
 
     } catch (err) {
       console.error('Classification error:', err);
